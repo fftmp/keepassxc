@@ -647,7 +647,7 @@ AutoType::parseSequence(const QString& entrySequence, const Entry* entry, QStrin
             actions << QSharedPointer<AutoTypeClearField>::create();
         } else if (placeholder == "totp") {
             // Entry totp (requires special handling)
-            QString totp = entry->totp();
+            QString totp = entry->getNewOtp();
             for (const auto& ch : totp) {
                 actions << QSharedPointer<AutoTypeKey>::create(ch);
             }

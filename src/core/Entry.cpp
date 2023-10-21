@@ -596,13 +596,15 @@ QString Entry::totp() const
 
 /// @details implicitly edit DB and save it (for HOTP). This need to store new value of counter.
 /// @return TOTP/HOTP code.
-QString Entry::getNewOtp()
+QString Entry::getNewOtp() const
 {
     if (hasTotp()) {
         auto res = Totp::generateTotp(m_data.totpSettings);
         if(hasHotp()) {
             ++m_data.totpSettings->counter;
-            setTotp(m_data.totpSettings);
+            auto text = Totp::writeSettings(
+                m_data.totpSettings, resolveMultiplePlaceholders(title()), resolveMultiplePlaceholders(username()));
+            m_attributes->set(Totp::ATTRIBUTE_OTP, text, true);
         }
         return res;
     }
