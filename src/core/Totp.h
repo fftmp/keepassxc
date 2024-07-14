@@ -49,6 +49,11 @@ namespace Totp
         KEEOTP,
         LEGACY,
     };
+    enum OtpType
+    {
+        HOTP,
+        TOTP,
+    };
 
     struct Settings
     {
@@ -57,7 +62,11 @@ namespace Totp
         Totp::Algorithm algorithm;
         QString key;
         uint digits;
-        uint step;
+        union {
+            uint step;
+            uint counter;
+        };
+        OtpType type;
     };
 
     constexpr uint DEFAULT_STEP = 30u;
@@ -83,10 +92,11 @@ namespace Totp
     QSharedPointer<Totp::Settings> parseSettings(const QString& rawSettings, const QString& key = {});
     QSharedPointer<Totp::Settings> createSettings(const QString& key,
                                                   const uint digits = DEFAULT_DIGITS,
-                                                  const uint step = DEFAULT_STEP,
+                                                  const uint step = DEFAULT_STEP, /* counter in case of HOTP*/
                                                   const Totp::StorageFormat format = DEFAULT_FORMAT,
                                                   const QString& encoderShortName = {},
-                                                  const Totp::Algorithm algorithm = DEFAULT_ALGORITHM);
+                                                  const Totp::Algorithm algorithm = DEFAULT_ALGORITHM,
+                                                  const OtpType type = OtpType::TOTP);
     QString writeSettings(const QSharedPointer<Totp::Settings>& settings,
                           const QString& title = {},
                           const QString& username = {},

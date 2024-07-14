@@ -101,14 +101,21 @@ QSharedPointer<Totp::Settings> Totp::parseSettings(const QString& rawSettings, c
         if (query.hasQueryItem("digits")) {
             settings->digits = query.queryItemValue("digits").toUInt();
         }
-        if (query.hasQueryItem("period")) {
-            settings->step = query.queryItemValue("period").toUInt();
-        }
         if (query.hasQueryItem("encoder")) {
             settings->encoder = getEncoderByName(query.queryItemValue("encoder"));
         }
         if (query.hasQueryItem("algorithm")) {
             settings->algorithm = getHashTypeByName(query.queryItemValue("algorithm"));
+        }
+        if(url.host() == "hotp") {
+            settings->type = OtpType::HOTP;
+            if(query.hasQueryItem("counter"))
+                settings->counter = query.queryItemValue("counter").toUInt();
+        } else {
+            settings->type = OtpType::TOTP;
+            if (query.hasQueryItem("period"))
+                settings->step = query.queryItemValue("period").toUInt();
+            settings->step = qBound(1u, settings->step, 60u);
         }
     } else {
         QUrlQuery query(rawSettings);
@@ -150,7 +157,6 @@ QSharedPointer<Totp::Settings> Totp::parseSettings(const QString& rawSettings, c
 
     // Bound digits and step
     settings->digits = qBound(1u, settings->digits, 10u);
-    settings->step = qBound(1u, settings->step, 86400u);
 
     return settings;
 }
@@ -160,10 +166,22 @@ QSharedPointer<Totp::Settings> Totp::createSettings(const QString& key,
                                                     const uint step,
                                                     const Totp::StorageFormat format,
                                                     const QString& encoderShortName,
-                                                    const Totp::Algorithm algorithm)
+                                                    const Totp::Algorithm algorithm,
+                                                    const OtpType type)
 {
-    return QSharedPointer<Totp::Settings>(
-        new Totp::Settings{format, getEncoderByShortName(encoderShortName), algorithm, key, digits, step});
+    auto s = new Totp::Settings;
+    s->format = format;
+    s->encoder = getEncoderByShortName(encoderShortName);
+    s->algorithm = algorithm;
+    s->key = key;
+    s->digits = digits;
+    s->type = type;
+    if (type == OtpType::HOTP)
+        s->counter = step;
+    else
+        s->step = step;
+        
+    return QSharedPointer<Totp::Settings>(s);
 }
 
 QString Totp::writeSettings(const QSharedPointer<Totp::Settings>& settings,
@@ -177,12 +195,17 @@ QString Totp::writeSettings(const QSharedPointer<Totp::Settings>& settings,
 
     // OTP Url output
     if (settings->format == StorageFormat::OTPURL || forceOtp) {
-        auto urlstring = QString("otpauth://totp/%1:%2?secret=%3&period=%4&digits=%5&issuer=%1")
-                             .arg(title.isEmpty() ? "KeePassXC" : QString(QUrl::toPercentEncoding(title)),
+        auto urlstring = QString("otpauth://%1/%2:%3?secret=%4&digits=%5&issuer=%2")
+                             .arg(settings->type == OtpType::TOTP ? "totp" : "hotp",
+                                  title.isEmpty() ? "KeePassXC" : QString(QUrl::toPercentEncoding(title)),
                                   username.isEmpty() ? "none" : QString(QUrl::toPercentEncoding(username)),
                                   QString(QUrl::toPercentEncoding(Base32::sanitizeInput(settings->key.toLatin1()))),
-                                  QString::number(settings->step),
                                   QString::number(settings->digits));
+
+        if (settings->type == OtpType::HOTP)
+            urlstring.append("&counter=").append(QString::number(settings->counter));
+        else
+            urlstring.append("&period=").append(QString::number(settings->step));
 
         if (!settings->encoder.name.isEmpty()) {
             urlstring.append("&encoder=").append(settings->encoder.name);
@@ -222,12 +245,14 @@ QString Totp::generateTotp(const QSharedPointer<Totp::Settings>& settings, const
     uint digits = settings->digits;
 
     quint64 current;
-    if (time == 0) {
-        current = qToBigEndian(static_cast<quint64>(Clock::currentSecondsSinceEpoch()) / step);
+    if(settings->type == OtpType::HOTP)
+        current = settings->counter;
+    else if (time == 0) {
+        current = static_cast<quint64>(Clock::currentSecondsSinceEpoch()) / step;
     } else {
-        current = qToBigEndian(time / step);
+        current = time / step;
     }
-
+    current = qToBigEndian(current);
     QVariant secret = Base32::decode(Base32::sanitizeInput(settings->key.toLatin1()));
     if (secret.isNull()) {
         return QObject::tr("Invalid Key", "TOTP");

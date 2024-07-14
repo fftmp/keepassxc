@@ -35,6 +35,7 @@ TotpSetupDialog::TotpSetupDialog(QWidget* parent, Entry* entry)
     connect(m_ui->buttonBox, SIGNAL(rejected()), SLOT(close()));
     connect(m_ui->buttonBox, SIGNAL(accepted()), SLOT(saveSettings()));
     connect(m_ui->radioCustom, SIGNAL(toggled(bool)), SLOT(toggleCustom(bool)));
+    connect(m_ui->radioHOTP, SIGNAL(toggled(bool)), SLOT(toggleCustom(bool)));
 
     init();
 }
@@ -61,6 +62,7 @@ void TotpSetupDialog::saveSettings()
     uint step = Totp::DEFAULT_STEP;
     Totp::Algorithm algorithm = Totp::DEFAULT_ALGORITHM;
     Totp::StorageFormat format = Totp::DEFAULT_FORMAT;
+    Totp::OtpType type = Totp::OtpType::TOTP;
 
     if (m_ui->radioSteam->isChecked()) {
         digits = Totp::STEAM_DIGITS;
@@ -69,6 +71,11 @@ void TotpSetupDialog::saveSettings()
         algorithm = static_cast<Totp::Algorithm>(m_ui->algorithmComboBox->currentData().toInt());
         step = m_ui->stepSpinBox->value();
         digits = m_ui->digitsSpinBox->value();
+    } else if (m_ui->radioHOTP->isChecked()) {
+        algorithm = static_cast<Totp::Algorithm>(m_ui->algorithmComboBox->currentData().toInt());
+        step = m_ui->HotpCounterSpinBox->value(); //TMP: counter.
+        digits = m_ui->digitsSpinBox->value();
+        type = Totp::OtpType::HOTP;
     }
 
     auto settings = m_entry->totpSettings();
@@ -90,7 +97,7 @@ void TotpSetupDialog::saveSettings()
         }
     }
 
-    m_entry->setTotp(Totp::createSettings(key, digits, step, format, encShortName, algorithm));
+    m_entry->setTotp(Totp::createSettings(key, digits, step, format, encShortName, algorithm, type));
     emit totpUpdated();
     close();
 }
@@ -115,12 +122,18 @@ void TotpSetupDialog::init()
         auto key = settings->key;
         m_ui->seedEdit->setText(key.remove("="));
         m_ui->seedEdit->setCursorPosition(0);
-        m_ui->stepSpinBox->setValue(settings->step);
+        if(settings->type == Totp::OtpType::HOTP)
+            m_ui->HotpCounterSpinBox->setValue(settings->counter);
+        else
+            m_ui->stepSpinBox->setValue(settings->step);
 
         if (settings->encoder.shortName == Totp::STEAM_SHORTNAME) {
             m_ui->radioSteam->setChecked(true);
         } else if (Totp::hasCustomSettings(settings)) {
-            m_ui->radioCustom->setChecked(true);
+            if(settings->type == Totp::OtpType::HOTP)
+                m_ui->radioHOTP->setChecked(true);
+            else
+                m_ui->radioCustom->setChecked(true);
             m_ui->digitsSpinBox->setValue(settings->digits);
             int index = m_ui->algorithmComboBox->findData(settings->algorithm);
             if (index != -1) {

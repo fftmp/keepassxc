@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>249</width>
-    <height>278</height>
+    <width>252</width>
+    <height>289</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -69,6 +69,16 @@
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_3">
       <item>
+       <widget class="QRadioButton" name="radioHOTP">
+        <property name="text">
+         <string>HOTP</string>
+        </property>
+        <attribute name="buttonGroup">
+         <string notr="true">settingsButtonGroup</string>
+        </attribute>
+       </widget>
+       </item>
+       <item>
        <widget class="QRadioButton" name="radioDefault">
         <property name="text">
          <string>Default settings (RFC 6238)</string>
@@ -190,6 +200,23 @@
         </property>
         <property name="singleStep">
          <number>1</number>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="hotpCounterLabel">
+        <property name="text">
+         <string>HOTP counter</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QSpinBox" name="HotpCounterSpinBox">
+        <property name="minimum">
+         <number>1</number>
+        </property>
+        <property name="maximum">
+         <number>2147483647</number>
         </property>
        </widget>
       </item>

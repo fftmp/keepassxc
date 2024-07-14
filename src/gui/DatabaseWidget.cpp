@@ -554,7 +554,7 @@ void DatabaseWidget::copyTotp()
     if (!currentEntry) {
         return;
     }
-    setClipboardTextAndMinimize(currentEntry->totp());
+    setClipboardTextAndMinimize(currentEntry->getNewOtp());
 }
 
 void DatabaseWidget::setupTotp()
@@ -725,7 +725,7 @@ void DatabaseWidget::copyPasswordTotp()
     auto currentEntry = currentSelectedEntry();
     if (currentEntry) {
         setClipboardTextAndMinimize(
-            currentEntry->resolveMultiplePlaceholders(currentEntry->password()).append(currentEntry->totp()));
+            currentEntry->resolveMultiplePlaceholders(currentEntry->password()).append(currentEntry->getNewOtp()));
     }
 }
 
